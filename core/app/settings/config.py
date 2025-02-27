@@ -2,7 +2,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class SettingsBase(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file="app/settings/.env",
+        extra="ignore",
+    )
 
     db_user: str
     db_pass: str
@@ -13,13 +16,19 @@ class SettingsBase(BaseSettings):
 
 
 class SettingsPrefix(BaseSettings):
-    model_config = SettingsConfigDict(env_file="settings/.env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file="app/settings/.env",
+        extra="ignore",
+    )
 
     table_prefix: str
 
 
 class SettingsEngine(BaseSettings):
-    model_config = SettingsConfigDict(env_file="settings/.env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file="app/settings/.env",
+        extra="ignore",
+    )
 
     engine: str
 

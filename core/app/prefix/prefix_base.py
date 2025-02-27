@@ -11,7 +11,7 @@ class PrefixDeclarativeBase(DeclarativeBase):
 class PrefixBase(PrefixDeclarativeBase):
     settings = SettingsPrefix()  # pyright: ignore
     __abstract__ = True
-    _the_prefix = settings.table_prefix
+    _the_prefix = SettingsPrefix().table_prefix  # pyright: ignore
 
     @declared_attr
     def __tablename__(cls):
