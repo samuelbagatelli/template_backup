@@ -1,31 +1,41 @@
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+from sqlalchemy.util import NoneType
 
 from app.models.user import User
-from app.schemas.user import UserCreate, UserPermissions
+from app.schemas.user import UserBase, UserCreate, UserPermissions
 from app.settings.database import get_session
 from app.utils.user import user_exists, user_get, user_table_is_empty
+
+JWT_SECRET = "secret"  # change this to something safer and not commited on git
+JWT_ALGORITHM = "HS256"
 
 router = APIRouter(prefix="/user", tags=["Create User"])
 
 
+# OAuth2 scheme definition
 oauth_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
+
+# Context definition for hashing passwords
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def user_authenticate(
+def user_authenticate_credentials(
     username: str,
     password: str,
     session: Session,
 ) -> User | None:
     """
-    Check if an user with :username: and :password:
-    exists in the database and verify hashed password.
+    Function to validate user credentials and return a user
+    if credentials are valid and exist in the database.
+
+    If the credentials are not valid or don't
+    exist in the database the function return None.
     """
     user = user_get(username, session)
 
@@ -39,12 +49,18 @@ def user_authenticate(
 def user_get_current(
     token: Annotated[str, Depends(oauth_scheme)],
     session: Session = Depends(get_session),
-):
+) -> User | None:
+    """
+    Function to extract the current user from the given Bearer Token.
+
+    If the user table is empty in the database, the function returns None.
+
+    Then, the function tryes to extract the username from the token.
+    After this, if the username is extracted sucessfully
+    and the user exists in the database, the user is returned.
+    """
     if user_table_is_empty(session):
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "'core_user' table is empty, please contact admin",
-        )
+        return None
 
     credential_except = HTTPException(
         status.HTTP_401_UNAUTHORIZED,
@@ -55,7 +71,7 @@ def user_get_current(
     try:
         if not token:
             raise credential_except
-        payload = jwt.decode(token, "secret", algorithms=["HS256"])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         username = payload.get("username")
         if not username:
             raise credential_except
@@ -70,10 +86,21 @@ def user_get_current(
 
 
 class PermissionChecker:
+    """
+    A class created to check if the user
+    has the permission to execute some action.
+
+    :attr permissions: A list of strings containing the
+                       permissions necessary to perform some action.
+    """
+
     permissions: list[str]
 
     def __init__(self, permissions: list[str]) -> None:
         self.permissions = permissions
+
+    def user_is_allowed(self, permissions: list[str]) -> bool:
+        return set(self.permissions).issubset(set(permissions))
 
     def __call__(
         self,
@@ -82,7 +109,9 @@ class PermissionChecker:
             Depends(user_get_current),
         ],
     ) -> bool:
-        if set(self.permissions).issubset(set(user.permissions)):
+        if isinstance(user, NoneType):
+            return False  # code IS reachable
+        if self.user_is_allowed(user.permissions):
             return True
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
@@ -90,11 +119,33 @@ class PermissionChecker:
         )
 
 
+def user_create_superuser(user_dict: dict, session: Session) -> User:
+    """
+    Function to create the superuser and commit it to the database.
+
+    It receives a dictionary with all information
+    necessary to create an instance of User.
+
+    After the user is commited to the database,
+    the function returns the instance.
+    """
+    user = User(
+        **user_dict,
+        superuser=True,
+        status=2,
+        password=pwd_context.hash(user_dict["password"]),
+    )
+
+    session.add(user)
+    session.commit()
+
+    return user
+
+
 @router.post("/create")
 async def user_create(
     request: UserCreate,
-    bg_tasks: BackgroundTasks,
-    _: Annotated[
+    su: Annotated[
         bool,
         Depends(PermissionChecker(permissions=["create_user"])),
     ],
@@ -110,20 +161,23 @@ async def user_create(
                     necessary to create a user in the database.
     :type request: <app.schemas.UserCreate>
     """
+    if su:
+        user = user_create_superuser(request.model_dump(), session)
+        return UserBase(username=user.username, email=user.email)
+
     if user_exists(request.username, session):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             f"Username {request.username} is already registered.",
         )
 
-    # user = User(
-    #     **request.model_dump(),
-    #     password=pwd_context.hash(request.password),
-    #     status=2,
-    # )
-    #
-    # session.add(user)
-    # session.commit()
+    user = User(
+        **request.model_dump(),
+        password=pwd_context.hash(request.password),
+        status=2,
+    )
 
-    # return UserBase(username=user.username, email=user.email)
-    return
+    session.add(user)
+    session.commit()
+
+    return UserBase(username=user.username, email=user.email)

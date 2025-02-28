@@ -17,6 +17,9 @@ def user_exists(
 
 
 def user_table_is_empty(session: Session) -> bool:
+    """
+    Check if the 'core_user' table is empty on the database.
+    """
     query = select(User.id).limit(1)
 
     row = session.execute(query).first()
@@ -26,7 +29,7 @@ def user_table_is_empty(session: Session) -> bool:
 
 def user_get(username: str, session: Session) -> User | None:
     """
-    Search a user in the database with the given :username:.
+    Search a user in the database with the given username.
 
     :raises HTTPException: If the user was not found.
     """
