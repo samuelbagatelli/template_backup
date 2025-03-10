@@ -1,7 +1,6 @@
+from app.settings.config import SettingsPrefix
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import DeclarativeBase
-
-from app.settings.config import SettingsPrefix
 
 
 class PrefixDeclarativeBase(DeclarativeBase):
@@ -9,7 +8,7 @@ class PrefixDeclarativeBase(DeclarativeBase):
 
 
 class PrefixBase(PrefixDeclarativeBase):
-    settings = SettingsPrefix()  # pyright: ignore
+    # settings = SettingsPrefix()  # pyright: ignore
     __abstract__ = True
     _the_prefix = SettingsPrefix().table_prefix  # pyright: ignore
 

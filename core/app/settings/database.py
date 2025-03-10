@@ -1,7 +1,6 @@
+from app.settings.config import SettingsBase
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-
-from app.settings.config import SettingsBase
 
 settings = SettingsBase()  # pyright: ignore
 
@@ -14,7 +13,7 @@ SQL_DB_URL = (
     f"/{settings.db_name}"
 )
 
-engine = create_engine(SQL_DB_URL, echo=True)
+engine = create_engine(SQL_DB_URL)
 SessionLocal = sessionmaker(autoflush=False, bind=engine)
 
 Base = declarative_base()

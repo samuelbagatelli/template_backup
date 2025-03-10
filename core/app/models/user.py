@@ -1,11 +1,10 @@
 from datetime import datetime
 
+from app.prefix.prefix_base import PrefixBase
+from app.settings.config import SettingsEngine
 from sqlalchemy import BigInteger, Boolean, DateTime, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql.elements import TextClause
-
-from app.prefix.prefix_base import PrefixBase
-from app.settings.config import SettingsEngine
 
 
 class User(PrefixBase):
@@ -64,4 +63,4 @@ class User(PrefixBase):
     )
 
     def __repr__(self) -> str:
-        return f"{self.id}."
+        return f"User(id={self.id}, username={self.username}, ...)"

@@ -14,6 +14,10 @@ class SettingsBase(BaseSettings):
     db_port: int
     db_name: str
 
+    jwt_secret: str
+    jwt_algorithm: str
+    jwt_expire_min: int
+
 
 class SettingsPrefix(BaseSettings):
     model_config = SettingsConfigDict(
